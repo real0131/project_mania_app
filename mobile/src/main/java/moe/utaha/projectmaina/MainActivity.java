@@ -11,20 +11,36 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.SearchView;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+
+import org.jsoup.Connection;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.xmlpull.v1.XmlPullParserException;
+
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+
+import cz.msebera.android.httpclient.Header;
 
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener , SearchView.OnQueryTextListener , SwipeRefreshLayout.OnRefreshListener{
     SearchView searchView; //액션바 검색
     WebView webView;
+    Parser parser;
+    private AsyncHttpClient asyncHttpClient;
     String url,link,query;
-    final String BASE_URL="http://namu.wiki/w/"; //최종(wiki.utaha.moe)
+    final String BASE_URL="http://blog.saltfactory.net/android/using-https-on-android.html"; //최종(wiki.utaha.moe)
     SwipeRefreshLayout swipeRefresh;
 
     @Override
@@ -51,7 +67,7 @@ public class MainActivity extends AppCompatActivity
         navigationView.setNavigationItemSelectedListener(this);
 
         getWebView("asdf");
-
+        getHttp("asdf");
         swipeRefresh = (SwipeRefreshLayout) findViewById(R.id.swipeRefresh);
         swipeRefresh.setOnRefreshListener(this);
     }
@@ -74,7 +90,7 @@ public class MainActivity extends AppCompatActivity
         getMenuInflater().inflate(R.menu.drawer, menu);
         MenuItem searchItem = menu.findItem(R.id.action_search);
         searchView = (SearchView) searchItem.getActionView();
-        searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
+       /* searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 Toast.makeText(getApplicationContext(),query+"",Toast.LENGTH_SHORT).show();
@@ -85,9 +101,8 @@ public class MainActivity extends AppCompatActivity
             public boolean onQueryTextChange(String newText) {
                 return false;
             }
-        });
+        });*/
         //searchView.setQueryHint("검색할 단어를 입력해주세요");
-        //searchView.setOnQueryTextListener(this);
 
         return true;
     }
@@ -152,8 +167,9 @@ public class MainActivity extends AppCompatActivity
     }
 
     void getWebView(String query){
+
         this.query = query;
-        url = BASE_URL+this.query;//웹뷰
+        url = BASE_URL;//+this.query;//웹뷰
         link = "http://namu.wiki/w/";
         webView = (WebView) findViewById(R.id.web_view);
         webView.getSettings().setJavaScriptEnabled(true);
@@ -173,9 +189,36 @@ public class MainActivity extends AppCompatActivity
             }
         });
     }
+
+    void getHttp(String query){
+        final String url = BASE_URL;//+query;
+        asyncHttpClient = new AsyncHttpClient();
+        asyncHttpClient.get(url, new AsyncHttpResponseHandler() {
+            @Override
+            public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+                Toast.makeText(getApplicationContext(), "통신성공" + statusCode, Toast.LENGTH_SHORT).show();
+                String result = new String(responseBody, 0, responseBody.length);
+                Log.i("sunrin", result);
+                InputStream is = new ByteArrayInputStream(responseBody);
+                try {
+                    parser = new Parser(is,url);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+            }
+
+            @Override
+            public void onFailure(int statusCode, Header[] headers, byte[] responseBody, Throwable error) {
+                Toast.makeText(getApplicationContext(), "통신실패" + statusCode, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
     @Override
     public void onRefresh() {
         webView.reload();
+        getHttp(query);
         swipeRefresh.setRefreshing(false);
     }
 }
